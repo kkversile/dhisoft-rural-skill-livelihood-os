@@ -1,0 +1,23 @@
+{
+  "name": "dhisoft-rural-skill-livelihood-os",
+  "private": true,
+  "scripts": {
+    "install:all": "npm --prefix dhisoft-rural-skill-backend install && npm --prefix dhisoft-rural-skill-frontend install",
+    "db:setup": "npm --prefix dhisoft-rural-skill-backend run db:setup",
+    "db:migrate": "npm --prefix dhisoft-rural-skill-backend run db:migrate",
+    "db:seed": "npm --prefix dhisoft-rural-skill-backend run db:seed",
+    "dev": "node scripts/dev.mjs",
+    "dev:frontend": "npm --prefix dhisoft-rural-skill-frontend run dev",
+    "dev:backend": "npm --prefix dhisoft-rural-skill-backend run start:dev",
+    "lint": "npm --prefix dhisoft-rural-skill-backend run lint && npm --prefix dhisoft-rural-skill-frontend run lint",
+    "typecheck": "npm --prefix dhisoft-rural-skill-backend run typecheck && npm --prefix dhisoft-rural-skill-frontend run typecheck",
+    "test": "npm --prefix dhisoft-rural-skill-backend test && npm --prefix dhisoft-rural-skill-frontend test",
+    "test:e2e": "npm --prefix dhisoft-rural-skill-backend run test:e2e && npm --prefix dhisoft-rural-skill-frontend run test:e2e",
+    "test:e2e:headed": "npm --prefix dhisoft-rural-skill-frontend run test:e2e:headed",
+    "test:e2e:ui": "npm --prefix dhisoft-rural-skill-frontend run test:e2e:ui",
+    "test:e2e:debug": "npm --prefix dhisoft-rural-skill-frontend run test:e2e:debug",
+    "test:e2e:chrome": "npm --prefix dhisoft-rural-skill-frontend run test:e2e:chrome",
+    "build": "npm --prefix dhisoft-rural-skill-backend run build && npm --prefix dhisoft-rural-skill-frontend run build",
+    "verify": "node scripts/verify.mjs"
+  }
+}

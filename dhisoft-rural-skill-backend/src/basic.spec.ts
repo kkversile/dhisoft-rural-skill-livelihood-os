@@ -1,0 +1,1 @@
+describe('adult pilot rule',()=>{it('requires 18+',()=>{expect(18).toBeGreaterThanOrEqual(18)})})

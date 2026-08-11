@@ -1,0 +1,11 @@
+import { Body,Controller,Post,Req,Res,UseGuards } from '@nestjs/common'; import type { Request,Response } from 'express'; import { AuthService } from './auth.service'; import { AcceptInvitationDto,ForgotPasswordDto,InvitationDto,LoginDto,RefreshDto,ResetPasswordDto } from './dto'; import { AuthGuard,AuthUser } from './auth.guard'; import { CurrentUser } from './current-user';
+const secure=process.env.NODE_ENV==='production'; const cookieBase={httpOnly:true,sameSite:'lax' as const,secure,path:'/'};
+@Controller('auth') export class AuthController { constructor(private s:AuthService){}
+  @Post('login') async login(@Body() dto:LoginDto,@Req() req:Request,@Res({passthrough:true}) res:Response){const out=await this.s.login(dto.tenantSlug,dto.email,dto.password,{ip:req.ip,userAgent:req.get('user-agent')});res.cookie('access_token',out.access,{...cookieBase,maxAge:15*60*1000});res.cookie('refresh_token',out.refresh,{...cookieBase,maxAge:7*86400*1000});res.cookie('csrf_token',out.csrf,{httpOnly:false,sameSite:'lax',secure,path:'/',maxAge:7*86400*1000});return {user:out.user,tenant:out.tenant};}
+  @Post('refresh') async refresh(@Body() dto:RefreshDto,@Req() req:Request,@Res({passthrough:true}) res:Response){const out=await this.s.refresh(dto.refreshToken||req.cookies?.refresh_token||'');res.cookie('access_token',out.access,{...cookieBase,maxAge:15*60*1000});res.cookie('refresh_token',out.refresh,{...cookieBase,maxAge:7*86400*1000});return {ok:true};}
+  @Post('logout') @UseGuards(AuthGuard) async logout(@CurrentUser() u:AuthUser,@Res({passthrough:true}) res:Response){await this.s.logout(u.sessionId,false);this.clear(res);return {ok:true};}
+  @Post('logout-all') @UseGuards(AuthGuard) async logoutAll(@CurrentUser() u:AuthUser,@Res({passthrough:true}) res:Response){await this.s.logout(u.sessionId,true);this.clear(res);return {ok:true};}
+  @Post('forgot-password') forgot(@Body() dto:ForgotPasswordDto){return this.s.forgotPassword(dto.tenantSlug,dto.email);}
+  @Post('reset-password') reset(@Body() dto:ResetPasswordDto){return this.s.resetPassword(dto.token,dto.password);}
+  private clear(res:Response){res.clearCookie('access_token',{path:'/',secure,sameSite:'lax'});res.clearCookie('refresh_token',{path:'/',secure,sameSite:'lax'});res.clearCookie('csrf_token',{path:'/',secure,sameSite:'lax'});}
+}

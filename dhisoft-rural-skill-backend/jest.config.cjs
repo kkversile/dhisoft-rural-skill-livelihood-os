@@ -1,0 +1,1 @@
+const path=require('node:path');module.exports={testEnvironment:'node',testRunner:'jest-circus/runner',resolver:path.join(__dirname,'jest-resolver.cjs'),roots:[path.join(__dirname,'src'),path.join(__dirname,'test')],testMatch:['**/*.spec.ts','**/*.e2e-spec.ts'],transform:{'^.+\\.ts$':['ts-jest',{tsconfig:{types:['node','jest']}}]}};

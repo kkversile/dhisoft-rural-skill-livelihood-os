@@ -1,0 +1,1 @@
+import { Controller,Get } from '@nestjs/common';import { PrismaService } from './prisma/prisma.service';@Controller('health') export class HealthController{constructor(private p:PrismaService){}@Get()async health(){await this.p.$queryRaw`SELECT 1`;return {status:'ok',database:'ok',service:'dhisoft-rural-skill-api',time:new Date().toISOString()};}}

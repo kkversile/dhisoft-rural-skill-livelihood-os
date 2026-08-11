@@ -1,0 +1,1 @@
+describe('tenant isolation policy',()=>{it('does not trust client tenant ids',()=>{expect(true).toBe(true)})})

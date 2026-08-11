@@ -1,0 +1,1 @@
+-- Baseline migration retained for migration history compatibility.

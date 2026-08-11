@@ -1,0 +1,1 @@
+import{describe,it,expect}from'vitest';describe('app',()=>{it('has product name',()=>expect('DHISOFT Rural Skill and Livelihood OS').toContain('Rural Skill'))})

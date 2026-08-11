@@ -1,0 +1,960 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum CandidateStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  MORE_INFORMATION_REQUIRED
+  VERIFIED
+  REJECTED
+  SUSPENDED
+  ARCHIVED
+}
+
+enum ConsentType {
+  REGISTRATION
+  DOCUMENT_PROCESSING
+  EMPLOYER_SHARING
+  MARKETPLACE_VISIBILITY
+  LOCATION_SHARING
+  COMMUNICATION
+  SPONSOR_REPORTING
+  RESEARCH_ANALYTICS
+}
+
+enum CertificateStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+enum RecognitionType {
+  PLATFORM_ISSUED
+  TRAINING_PARTNER_ISSUED
+  RECOGNISED_EXTERNAL
+  GOVERNMENT_RECOGNISED
+}
+
+model Tenant {
+  id                    String                 @id @default(uuid()) @db.Uuid
+  slug                  String                 @unique
+  name                  String
+  status                TenantStatus           @default(ACTIVE)
+  defaultLanguage       String                 @default("en")
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  users                 User[]
+  candidates            Candidate[]
+  trades                Trade[]
+  courses               Course[]
+  centres               TrainingCentre[]
+  batches               Batch[]
+  employers             Employer[]
+  vacancies             Vacancy[]
+  certificates          Certificate[]
+  audits                AuditEvent[]
+  authSessions          AuthSession[]
+  refreshTokens         RefreshToken[]
+  passwordResetTokens   PasswordResetToken[]
+  invitations           Invitation[]
+  counsellingSessions   CounsellingSession[]
+  tradeRecommendations  TradeRecommendation[]
+  candidateTradeChoices CandidateTradeChoice[]
+  trainingPartners      TrainingPartner[]
+  trainers              TrainerProfile[]
+  timetables            Timetable[]
+  attendanceRecords     AttendanceRecord[]
+  practicalAssignments  PracticalAssignment[]
+  evidenceFiles         EvidenceFile[]
+  evaluations           Evaluation[]
+  assessments           Assessment[]
+  assessmentResults     AssessmentResult[]
+  apprenticeships       Apprenticeship[]
+  interviews            Interview[]
+  interviewScorecards   InterviewScorecard[]
+  employmentOffers      EmploymentOffer[]
+  serviceAreas          ServiceArea[]
+  serviceOpportunities  ServiceOpportunity[]
+  serviceBookings       ServiceBooking[]
+  complaints            Complaint[]
+  payments              Payment[]
+  payouts               Payout[]
+  documents             Document[]
+  courseSubscriptions   CourseSubscription[]
+
+  @@index([status])
+}
+
+model User {
+  id                  String               @id @default(uuid()) @db.Uuid
+  tenantId            String?              @db.Uuid
+  tenant              Tenant?              @relation(fields: [tenantId], references: [id])
+  email               String               @unique
+  mobile              String?
+  passwordHash        String
+  role                String
+  status              String               @default("ACTIVE")
+  tokenVersion        Int                  @default(1)
+  failedLoginCount    Int                  @default(0)
+  lockedUntil         DateTime?
+  lastLoginAt         DateTime?
+  mfaEnabled          Boolean              @default(false)
+  mfaSecretEncrypted  String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  authSessions        AuthSession[]
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  invitationsAccepted Invitation[]         @relation("InvitationAcceptedBy")
+  courseSubscriptions CourseSubscription[]
+
+  @@index([tenantId, role])
+  @@index([tenantId, status])
+}
+
+model AuthSession {
+  id            String         @id @default(uuid()) @db.Uuid
+  tenantId      String         @db.Uuid
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  userId        String         @db.Uuid
+  user          User           @relation(fields: [userId], references: [id])
+  csrfTokenHash String
+  userAgent     String?
+  ipAddress     String?
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  createdAt     DateTime       @default(now())
+  lastSeenAt    DateTime       @default(now())
+  refreshTokens RefreshToken[]
+
+  @@index([tenantId, userId, revokedAt])
+}
+
+model RefreshToken {
+  id        String      @id @default(uuid()) @db.Uuid
+  tenantId  String      @db.Uuid
+  tenant    Tenant      @relation(fields: [tenantId], references: [id])
+  userId    String      @db.Uuid
+  user      User        @relation(fields: [userId], references: [id])
+  sessionId String      @db.Uuid
+  session   AuthSession @relation(fields: [sessionId], references: [id])
+  familyId  String      @db.Uuid
+  tokenHash String      @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  revokedAt DateTime?
+  createdAt DateTime    @default(now())
+
+  @@index([tenantId, userId, familyId])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  tenantId  String    @db.Uuid
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  userId    String    @db.Uuid
+  user      User      @relation(fields: [userId], references: [id])
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model Invitation {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenantId     String    @db.Uuid
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  email        String
+  role         String
+  tokenHash    String    @unique
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  acceptedById String?   @db.Uuid
+  acceptedBy   User?     @relation("InvitationAcceptedBy", fields: [acceptedById], references: [id])
+  createdAt    DateTime  @default(now())
+
+  @@index([tenantId, email])
+}
+
+model Candidate {
+  id                    String                 @id @default(uuid()) @db.Uuid
+  tenantId              String                 @db.Uuid
+  tenant                Tenant                 @relation(fields: [tenantId], references: [id])
+  fullName              String
+  dateOfBirth           DateTime
+  mobile                String
+  alternateMobile       String?
+  email                 String?
+  preferredLanguage     String                 @default("en")
+  education             String?
+  employmentStatus      String?
+  experience            String?
+  tradeInterests        String[]
+  status                CandidateStatus        @default(DRAFT)
+  district              String?
+  state                 String?
+  village               String?
+  adultEligible         Boolean                @default(false)
+  source                String                 @default("FIELD_COORDINATOR")
+  governmentIdHash      String?
+  governmentIdEncrypted String?
+  version               Int                    @default(1)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  consents              Consent[]
+  enrollments           Enrollment[]
+  applications          JobApplication[]
+  placements            Placement[]
+  certificates          Certificate[]
+  incomeRecords         IncomeRecord[]
+  counsellingSessions   CounsellingSession[]
+  tradeRecommendations  TradeRecommendation[]
+  tradeChoices          CandidateTradeChoice[]
+  attendanceRecords     AttendanceRecord[]
+  practicalAssignments  PracticalAssignment[]
+  evidenceFiles         EvidenceFile[]
+  assessments           Assessment[]
+  assessmentResults     AssessmentResult[]
+  apprenticeships       Apprenticeship[]
+  interviews            Interview[]
+  employmentOffers      EmploymentOffer[]
+  serviceBookings       ServiceBooking[]
+  complaints            Complaint[]
+  documents             Document[]
+
+  @@unique([tenantId, mobile])
+  @@index([tenantId, status])
+  @@index([tenantId, district, status])
+  @@index([tenantId, governmentIdHash])
+}
+
+model Consent {
+  id           String      @id @default(uuid()) @db.Uuid
+  tenantId     String      @db.Uuid
+  candidateId  String      @db.Uuid
+  candidate    Candidate   @relation(fields: [candidateId], references: [id])
+  type         ConsentType
+  version      String
+  granted      Boolean
+  capturedById String?
+  channel      String
+  evidence     String?
+  withdrawnAt  DateTime?
+  createdAt    DateTime    @default(now())
+
+  @@unique([candidateId, type, version])
+  @@index([tenantId, candidateId])
+}
+
+model Trade {
+  id                   String                 @id @default(uuid()) @db.Uuid
+  tenantId             String                 @db.Uuid
+  tenant               Tenant                 @relation(fields: [tenantId], references: [id])
+  name                 String
+  code                 String
+  hazardClass          String
+  minimumAge           Int                    @default(18)
+  active               Boolean                @default(true)
+  courses              Course[]
+  certificates         Certificate[]
+  vacancies            Vacancy[]
+  tradeRecommendations TradeRecommendation[]
+  tradeChoices         CandidateTradeChoice[]
+  apprenticeships      Apprenticeship[]
+  serviceOpportunities ServiceOpportunity[]
+
+  @@unique([tenantId, code])
+}
+
+model Course {
+  id                   String               @id @default(uuid()) @db.Uuid
+  tenantId             String               @db.Uuid
+  tenant               Tenant               @relation(fields: [tenantId], references: [id])
+  tradeId              String               @db.Uuid
+  trade                Trade                @relation(fields: [tradeId], references: [id])
+  code                 String
+  title                String
+  status               String               @default("DRAFT")
+  durationDays         Int
+  theoryHours          Int
+  practicalHours       Int
+  language             String
+  curriculumVersions   CurriculumVersion[]
+  batches              Batch[]
+  certificates         Certificate[]
+  assessments          Assessment[]
+  youtubeUrl           String?
+  lessonTitle          String?
+  lessonAuthor         String?
+  lessonAuthorUrl      String?
+  lessonThumbnailUrl   String?
+  subscriptionRequired Boolean              @default(true)
+  subscriptions        CourseSubscription[]
+
+  @@unique([tenantId, code])
+}
+
+model CourseSubscription {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenantId     String    @db.Uuid
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  courseId     String    @db.Uuid
+  course       Course    @relation(fields: [courseId], references: [id])
+  userId       String    @db.Uuid
+  user         User      @relation(fields: [userId], references: [id])
+  status       String    @default("ACTIVE")
+  subscribedAt DateTime  @default(now())
+  cancelledAt  DateTime?
+
+  @@unique([tenantId, courseId, userId])
+  @@index([tenantId, userId, status])
+  @@index([tenantId, courseId, status])
+}
+
+model CurriculumVersion {
+  id           String        @id @default(uuid()) @db.Uuid
+  tenantId     String        @db.Uuid
+  courseId     String        @db.Uuid
+  course       Course        @relation(fields: [courseId], references: [id])
+  version      Int
+  status       String        @default("DRAFT")
+  content      Json
+  batches      Batch[]
+  certificates Certificate[]
+
+  @@unique([courseId, version])
+}
+
+model TrainingPartner {
+  id                 String   @id @default(uuid()) @db.Uuid
+  tenantId           String   @db.Uuid
+  tenant             Tenant   @relation(fields: [tenantId], references: [id])
+  name               String
+  registrationNumber String?
+  status             String   @default("APPLIED")
+  phone              String?
+  email              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([tenantId, registrationNumber])
+  @@index([tenantId, status])
+}
+
+model TrainingCentre {
+  id                String  @id @default(uuid()) @db.Uuid
+  tenantId          String  @db.Uuid
+  tenant            Tenant  @relation(fields: [tenantId], references: [id])
+  trainingPartnerId String? @db.Uuid
+  name              String
+  district          String
+  capacity          Int
+  status            String  @default("APPLIED")
+  address           String?
+  batches           Batch[]
+
+  @@index([tenantId, status])
+}
+
+model TrainerProfile {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @db.Uuid
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  userId          String?  @db.Uuid
+  name            String
+  phone           String?
+  specialisations String[]
+  status          String   @default("ACTIVE")
+
+  @@index([tenantId, status])
+}
+
+model Batch {
+  id                   String                @id @default(uuid()) @db.Uuid
+  tenantId             String                @db.Uuid
+  tenant               Tenant                @relation(fields: [tenantId], references: [id])
+  courseId             String                @db.Uuid
+  course               Course                @relation(fields: [courseId], references: [id])
+  curriculumVersionId  String                @db.Uuid
+  curriculumVersion    CurriculumVersion     @relation(fields: [curriculumVersionId], references: [id])
+  centreId             String                @db.Uuid
+  centre               TrainingCentre        @relation(fields: [centreId], references: [id])
+  name                 String
+  startDate            DateTime
+  endDate              DateTime
+  capacity             Int
+  status               String                @default("PLANNED")
+  enrollments          Enrollment[]
+  timetables           Timetable[]
+  attendanceRecords    AttendanceRecord[]
+  practicalAssignments PracticalAssignment[]
+  assessments          Assessment[]
+
+  @@index([tenantId, status])
+}
+
+model Enrollment {
+  id                   String                @id @default(uuid()) @db.Uuid
+  tenantId             String                @db.Uuid
+  candidateId          String                @db.Uuid
+  batchId              String                @db.Uuid
+  candidate            Candidate             @relation(fields: [candidateId], references: [id])
+  batch                Batch                 @relation(fields: [batchId], references: [id])
+  status               String                @default("ENROLLED")
+  theoryAttendance     Decimal               @default(0) @db.Decimal(5, 2)
+  practicalAttendance  Decimal               @default(0) @db.Decimal(5, 2)
+  assignmentPassed     Boolean               @default(false)
+  theoryPassed         Boolean               @default(false)
+  practicalPassed      Boolean               @default(false)
+  attendanceRecords    AttendanceRecord[]
+  practicalAssignments PracticalAssignment[]
+
+  @@unique([candidateId, batchId])
+  @@index([tenantId, status])
+}
+
+model Timetable {
+  id                String             @id @default(uuid()) @db.Uuid
+  tenantId          String             @db.Uuid
+  tenant            Tenant             @relation(fields: [tenantId], references: [id])
+  batchId           String             @db.Uuid
+  batch             Batch              @relation(fields: [batchId], references: [id])
+  trainerId         String?            @db.Uuid
+  sessionDate       DateTime
+  startTime         String
+  endTime           String
+  sessionType       String
+  topic             String
+  status            String             @default("SCHEDULED")
+  attendanceRecords AttendanceRecord[]
+
+  @@index([tenantId, batchId, sessionDate])
+}
+
+model AttendanceRecord {
+  id             String     @id @default(uuid()) @db.Uuid
+  tenantId       String     @db.Uuid
+  tenant         Tenant     @relation(fields: [tenantId], references: [id])
+  candidateId    String     @db.Uuid
+  candidate      Candidate  @relation(fields: [candidateId], references: [id])
+  batchId        String     @db.Uuid
+  batch          Batch      @relation(fields: [batchId], references: [id])
+  enrollmentId   String     @db.Uuid
+  enrollment     Enrollment @relation(fields: [enrollmentId], references: [id])
+  timetableId    String?    @db.Uuid
+  timetable      Timetable? @relation(fields: [timetableId], references: [id])
+  attendanceDate DateTime
+  sessionType    String
+  status         String
+  reason         String?
+  markedById     String?
+  createdAt      DateTime   @default(now())
+
+  @@unique([enrollmentId, attendanceDate, sessionType])
+  @@index([tenantId, batchId, attendanceDate])
+}
+
+model PracticalAssignment {
+  id            String         @id @default(uuid()) @db.Uuid
+  tenantId      String         @db.Uuid
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  candidateId   String         @db.Uuid
+  candidate     Candidate      @relation(fields: [candidateId], references: [id])
+  batchId       String         @db.Uuid
+  batch         Batch          @relation(fields: [batchId], references: [id])
+  enrollmentId  String         @db.Uuid
+  enrollment    Enrollment     @relation(fields: [enrollmentId], references: [id])
+  title         String
+  instructions  String
+  dueDate       DateTime?
+  status        String         @default("ASSIGNED")
+  submittedAt   DateTime?
+  evidenceFiles EvidenceFile[]
+  evaluations   Evaluation[]
+
+  @@index([tenantId, batchId, status])
+}
+
+model EvidenceFile {
+  id           String               @id @default(uuid()) @db.Uuid
+  tenantId     String               @db.Uuid
+  tenant       Tenant               @relation(fields: [tenantId], references: [id])
+  candidateId  String               @db.Uuid
+  candidate    Candidate            @relation(fields: [candidateId], references: [id])
+  assignmentId String?              @db.Uuid
+  assignment   PracticalAssignment? @relation(fields: [assignmentId], references: [id])
+  storageKey   String
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  sha256       String
+  version      Int                  @default(1)
+  status       String               @default("UPLOADED")
+  createdAt    DateTime             @default(now())
+
+  @@index([tenantId, candidateId])
+}
+
+model Evaluation {
+  id           String              @id @default(uuid()) @db.Uuid
+  tenantId     String              @db.Uuid
+  tenant       Tenant              @relation(fields: [tenantId], references: [id])
+  assignmentId String              @db.Uuid
+  assignment   PracticalAssignment @relation(fields: [assignmentId], references: [id])
+  assessorId   String              @db.Uuid
+  score        Decimal             @db.Decimal(5, 2)
+  passed       Boolean
+  feedback     String?
+  evaluatedAt  DateTime            @default(now())
+
+  @@unique([assignmentId, assessorId])
+}
+
+model Assessment {
+  id             String             @id @default(uuid()) @db.Uuid
+  tenantId       String             @db.Uuid
+  tenant         Tenant             @relation(fields: [tenantId], references: [id])
+  batchId        String             @db.Uuid
+  batch          Batch              @relation(fields: [batchId], references: [id])
+  courseId       String             @db.Uuid
+  course         Course             @relation(fields: [courseId], references: [id])
+  name           String
+  assessmentType String
+  scheduledAt    DateTime
+  status         String             @default("SCHEDULED")
+  candidateId    String?            @db.Uuid
+  candidate      Candidate?         @relation(fields: [candidateId], references: [id])
+  results        AssessmentResult[]
+
+  @@index([tenantId, batchId, status])
+}
+
+model AssessmentResult {
+  id             String     @id @default(uuid()) @db.Uuid
+  tenantId       String     @db.Uuid
+  tenant         Tenant     @relation(fields: [tenantId], references: [id])
+  assessmentId   String     @db.Uuid
+  assessment     Assessment @relation(fields: [assessmentId], references: [id])
+  candidateId    String     @db.Uuid
+  candidate      Candidate  @relation(fields: [candidateId], references: [id])
+  theoryScore    Decimal    @db.Decimal(5, 2)
+  practicalScore Decimal    @db.Decimal(5, 2)
+  totalScore     Decimal    @db.Decimal(5, 2)
+  passed         Boolean
+  recordedAt     DateTime   @default(now())
+
+  @@unique([assessmentId, candidateId])
+}
+
+model Certificate {
+  id                  String            @id @default(uuid()) @db.Uuid
+  tenantId            String            @db.Uuid
+  tenant              Tenant            @relation(fields: [tenantId], references: [id])
+  candidateId         String            @db.Uuid
+  candidate           Candidate         @relation(fields: [candidateId], references: [id])
+  tradeId             String            @db.Uuid
+  trade               Trade             @relation(fields: [tradeId], references: [id])
+  courseId            String            @db.Uuid
+  course              Course            @relation(fields: [courseId], references: [id])
+  curriculumVersionId String            @db.Uuid
+  curriculumVersion   CurriculumVersion @relation(fields: [curriculumVersionId], references: [id])
+  number              String            @unique
+  verificationToken   String            @unique
+  recognitionType     RecognitionType   @default(PLATFORM_ISSUED)
+  status              CertificateStatus @default(ACTIVE)
+  issueDate           DateTime          @default(now())
+  expiryDate          DateTime?
+  revokedReason       String?
+
+  @@index([tenantId, candidateId, status])
+}
+
+model CounsellingSession {
+  id                   String    @id @default(uuid()) @db.Uuid
+  tenantId             String    @db.Uuid
+  tenant               Tenant    @relation(fields: [tenantId], references: [id])
+  candidateId          String    @db.Uuid
+  candidate            Candidate @relation(fields: [candidateId], references: [id])
+  counsellorId         String    @db.Uuid
+  sessionDate          DateTime
+  interests            String?
+  aptitude             String?
+  education            String?
+  experience           String?
+  physicalRequirements String?
+  locationPreference   String?
+  notes                String?
+  nextFollowUpAt       DateTime?
+  status               String    @default("COMPLETED")
+  createdAt            DateTime  @default(now())
+
+  @@index([tenantId, candidateId, sessionDate])
+}
+
+model TradeRecommendation {
+  id          String                 @id @default(uuid()) @db.Uuid
+  tenantId    String                 @db.Uuid
+  tenant      Tenant                 @relation(fields: [tenantId], references: [id])
+  candidateId String                 @db.Uuid
+  candidate   Candidate              @relation(fields: [candidateId], references: [id])
+  tradeId     String                 @db.Uuid
+  trade       Trade                  @relation(fields: [tradeId], references: [id])
+  score       Decimal                @db.Decimal(6, 2)
+  factors     Json
+  explanation String
+  status      String                 @default("RECOMMENDED")
+  createdAt   DateTime               @default(now())
+  choices     CandidateTradeChoice[]
+
+  @@index([tenantId, candidateId, score])
+}
+
+model CandidateTradeChoice {
+  id               String               @id @default(uuid()) @db.Uuid
+  tenantId         String               @db.Uuid
+  tenant           Tenant               @relation(fields: [tenantId], references: [id])
+  candidateId      String               @db.Uuid
+  candidate        Candidate            @relation(fields: [candidateId], references: [id])
+  tradeId          String               @db.Uuid
+  trade            Trade                @relation(fields: [tradeId], references: [id])
+  recommendationId String?              @db.Uuid
+  recommendation   TradeRecommendation? @relation(fields: [recommendationId], references: [id])
+  selectedAt       DateTime             @default(now())
+  status           String               @default("SELECTED")
+
+  @@unique([candidateId, tradeId])
+}
+
+model Employer {
+  id         String      @id @default(uuid()) @db.Uuid
+  tenantId   String      @db.Uuid
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  name       String
+  status     String      @default("DRAFT")
+  district   String
+  state      String?
+  phone      String?
+  email      String?
+  vacancies  Vacancy[]
+  placements Placement[]
+
+  @@index([tenantId, status])
+}
+
+model Vacancy {
+  id           String            @id @default(uuid()) @db.Uuid
+  tenantId     String            @db.Uuid
+  tenant       Tenant            @relation(fields: [tenantId], references: [id])
+  employerId   String            @db.Uuid
+  employer     Employer          @relation(fields: [employerId], references: [id])
+  tradeId      String            @db.Uuid
+  trade        Trade             @relation(fields: [tradeId], references: [id])
+  title        String
+  openings     Int
+  salaryMin    Decimal           @db.Decimal(18, 2)
+  salaryMax    Decimal           @db.Decimal(18, 2)
+  location     String
+  risks        String
+  status       String            @default("DRAFT")
+  applications JobApplication[]
+  placements   Placement[]
+  interviews   Interview[]
+  offers       EmploymentOffer[]
+
+  @@index([tenantId, status])
+}
+
+model JobApplication {
+  id              String            @id @default(uuid()) @db.Uuid
+  tenantId        String            @db.Uuid
+  candidateId     String            @db.Uuid
+  vacancyId       String            @db.Uuid
+  candidate       Candidate         @relation(fields: [candidateId], references: [id])
+  vacancy         Vacancy           @relation(fields: [vacancyId], references: [id])
+  status          String            @default("APPLIED")
+  consentVerified Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  interviews      Interview[]
+  offers          EmploymentOffer[]
+
+  @@unique([candidateId, vacancyId])
+  @@index([tenantId, status])
+}
+
+model Interview {
+  id            String               @id @default(uuid()) @db.Uuid
+  tenantId      String               @db.Uuid
+  tenant        Tenant               @relation(fields: [tenantId], references: [id])
+  applicationId String               @db.Uuid
+  application   JobApplication       @relation(fields: [applicationId], references: [id])
+  candidateId   String               @db.Uuid
+  candidate     Candidate            @relation(fields: [candidateId], references: [id])
+  vacancyId     String               @db.Uuid
+  vacancy       Vacancy              @relation(fields: [vacancyId], references: [id])
+  scheduledAt   DateTime
+  mode          String
+  status        String               @default("SCHEDULED")
+  scorecards    InterviewScorecard[]
+}
+
+model InterviewScorecard {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @db.Uuid
+  tenant         Tenant    @relation(fields: [tenantId], references: [id])
+  interviewId    String    @db.Uuid
+  interview      Interview @relation(fields: [interviewId], references: [id])
+  assessorId     String    @db.Uuid
+  score          Decimal   @db.Decimal(5, 2)
+  recommendation String
+  notes          String?
+  createdAt      DateTime  @default(now())
+
+  @@unique([interviewId, assessorId])
+}
+
+model EmploymentOffer {
+  id            String         @id @default(uuid()) @db.Uuid
+  tenantId      String         @db.Uuid
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  applicationId String         @db.Uuid
+  application   JobApplication @relation(fields: [applicationId], references: [id])
+  candidateId   String         @db.Uuid
+  candidate     Candidate      @relation(fields: [candidateId], references: [id])
+  vacancyId     String         @db.Uuid
+  vacancy       Vacancy        @relation(fields: [vacancyId], references: [id])
+  salary        Decimal        @db.Decimal(18, 2)
+  issuedAt      DateTime       @default(now())
+  expiresAt     DateTime
+  status        String         @default("ISSUED")
+  acceptedAt    DateTime?
+
+  @@index([tenantId, status])
+}
+
+model Apprenticeship {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenantId     String    @db.Uuid
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  candidateId  String    @db.Uuid
+  candidate    Candidate @relation(fields: [candidateId], references: [id])
+  tradeId      String    @db.Uuid
+  trade        Trade     @relation(fields: [tradeId], references: [id])
+  providerName String
+  startDate    DateTime
+  endDate      DateTime?
+  stipend      Decimal   @db.Decimal(18, 2)
+  status       String    @default("ACTIVE")
+  createdAt    DateTime  @default(now())
+
+  @@index([tenantId, candidateId, status])
+}
+
+model Placement {
+  id          String              @id @default(uuid()) @db.Uuid
+  tenantId    String              @db.Uuid
+  candidateId String              @db.Uuid
+  employerId  String              @db.Uuid
+  vacancyId   String              @db.Uuid
+  candidate   Candidate           @relation(fields: [candidateId], references: [id])
+  employer    Employer            @relation(fields: [employerId], references: [id])
+  vacancy     Vacancy             @relation(fields: [vacancyId], references: [id])
+  joiningDate DateTime
+  salary      Decimal             @db.Decimal(18, 2)
+  status      String              @default("JOINED")
+  createdAt   DateTime            @default(now())
+  followUps   RetentionFollowUp[]
+  payments    Payment[]
+
+  @@index([tenantId, status])
+}
+
+model RetentionFollowUp {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @db.Uuid
+  placementId    String    @db.Uuid
+  placement      Placement @relation(fields: [placementId], references: [id])
+  day            Int
+  dueDate        DateTime
+  status         String    @default("PENDING")
+  stillEmployed  Boolean?
+  salaryReceived Boolean?
+  safetyConcern  Boolean?
+  notes          String?
+
+  @@unique([placementId, day])
+  @@index([tenantId, status, dueDate])
+}
+
+model IncomeRecord {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @db.Uuid
+  candidateId String    @db.Uuid
+  candidate   Candidate @relation(fields: [candidateId], references: [id])
+  month       DateTime
+  gross       Decimal   @db.Decimal(18, 2)
+  net         Decimal   @db.Decimal(18, 2)
+  source      String
+  verified    Boolean   @default(false)
+
+  @@unique([candidateId, month, source])
+  @@index([tenantId, month])
+}
+
+model ServiceArea {
+  id            String               @id @default(uuid()) @db.Uuid
+  tenantId      String               @db.Uuid
+  tenant        Tenant               @relation(fields: [tenantId], references: [id])
+  name          String
+  district      String
+  postalCodes   String[]
+  status        String               @default("ACTIVE")
+  opportunities ServiceOpportunity[]
+
+  @@unique([tenantId, name])
+}
+
+model ServiceOpportunity {
+  id            String           @id @default(uuid()) @db.Uuid
+  tenantId      String           @db.Uuid
+  tenant        Tenant           @relation(fields: [tenantId], references: [id])
+  serviceAreaId String           @db.Uuid
+  serviceArea   ServiceArea      @relation(fields: [serviceAreaId], references: [id])
+  tradeId       String           @db.Uuid
+  trade         Trade            @relation(fields: [tradeId], references: [id])
+  title         String
+  description   String
+  price         Decimal          @db.Decimal(18, 2)
+  status        String           @default("OPEN")
+  bookings      ServiceBooking[]
+
+  @@index([tenantId, status])
+}
+
+model ServiceBooking {
+  id             String             @id @default(uuid()) @db.Uuid
+  tenantId       String             @db.Uuid
+  tenant         Tenant             @relation(fields: [tenantId], references: [id])
+  opportunityId  String             @db.Uuid
+  opportunity    ServiceOpportunity @relation(fields: [opportunityId], references: [id])
+  candidateId    String             @db.Uuid
+  candidate      Candidate          @relation(fields: [candidateId], references: [id])
+  customerName   String
+  customerMobile String
+  serviceAddress String
+  scheduledAt    DateTime?
+  agreedAmount   Decimal            @db.Decimal(18, 2)
+  status         String             @default("REQUESTED")
+  complaints     Complaint[]
+  payments       Payment[]
+  payouts        Payout[]
+
+  @@index([tenantId, status])
+}
+
+model Complaint {
+  id               String          @id @default(uuid()) @db.Uuid
+  tenantId         String          @db.Uuid
+  tenant           Tenant          @relation(fields: [tenantId], references: [id])
+  candidateId      String?         @db.Uuid
+  candidate        Candidate?      @relation(fields: [candidateId], references: [id])
+  serviceBookingId String?         @db.Uuid
+  serviceBooking   ServiceBooking? @relation(fields: [serviceBookingId], references: [id])
+  category         String
+  description      String
+  severity         String          @default("MEDIUM")
+  status           String          @default("OPEN")
+  resolution       String?
+  createdAt        DateTime        @default(now())
+  resolvedAt       DateTime?
+
+  @@index([tenantId, status, severity])
+}
+
+model Payment {
+  id                String          @id @default(uuid()) @db.Uuid
+  tenantId          String          @db.Uuid
+  tenant            Tenant          @relation(fields: [tenantId], references: [id])
+  serviceBookingId  String?         @db.Uuid
+  serviceBooking    ServiceBooking? @relation(fields: [serviceBookingId], references: [id])
+  placementId       String?         @db.Uuid
+  placement         Placement?      @relation(fields: [placementId], references: [id])
+  amount            Decimal         @db.Decimal(18, 2)
+  currency          String          @default("INR")
+  provider          String          @default("LOCAL")
+  providerReference String?
+  status            String          @default("PENDING")
+  createdAt         DateTime        @default(now())
+  payouts           Payout[]
+
+  @@index([tenantId, status])
+}
+
+model Payout {
+  id               String          @id @default(uuid()) @db.Uuid
+  tenantId         String          @db.Uuid
+  tenant           Tenant          @relation(fields: [tenantId], references: [id])
+  paymentId        String?         @db.Uuid
+  payment          Payment?        @relation(fields: [paymentId], references: [id])
+  serviceBookingId String?         @db.Uuid
+  serviceBooking   ServiceBooking? @relation(fields: [serviceBookingId], references: [id])
+  candidateId      String?         @db.Uuid
+  amount           Decimal         @db.Decimal(18, 2)
+  status           String          @default("PENDING")
+  processedAt      DateTime?
+  idempotencyKey   String          @unique
+
+  @@index([tenantId, status])
+}
+
+model Document {
+  id           String     @id @default(uuid()) @db.Uuid
+  tenantId     String     @db.Uuid
+  tenant       Tenant     @relation(fields: [tenantId], references: [id])
+  candidateId  String?    @db.Uuid
+  candidate    Candidate? @relation(fields: [candidateId], references: [id])
+  type         String
+  storageKey   String
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  sha256       String
+  version      Int        @default(1)
+  status       String     @default("PENDING_REVIEW")
+  uploadedById String?
+  createdAt    DateTime   @default(now())
+
+  @@index([tenantId, candidateId, type])
+}
+
+model AuditEvent {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String?  @db.Uuid
+  tenant        Tenant?  @relation(fields: [tenantId], references: [id])
+  userId        String?
+  action        String
+  entity        String
+  entityId      String?
+  oldValue      Json?
+  newValue      Json?
+  reason        String?
+  ip            String?
+  userAgent     String?
+  correlationId String
+  createdAt     DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, entity, entityId])
+}
