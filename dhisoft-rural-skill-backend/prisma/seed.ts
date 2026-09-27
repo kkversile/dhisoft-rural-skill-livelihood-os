@@ -58,7 +58,7 @@ async function main() {
   const pilot = await p.tenant.create({ data: { slug: 'rural-pilot', name: 'DHISOFT Rural Pilot Telangana' } });
   const second = await p.tenant.create({ data: { slug: 'second-tenant', name: 'Isolation Test Tenant' } });
   const hash = await argon2.hash(seedPassword);
-  for (const [email, role] of [['owner@rural-pilot.local', 'TENANT_OWNER'], ['programme@rural-pilot.local', 'PROGRAMME_MANAGER'], ['coordinator@rural-pilot.local', 'FIELD_COORDINATOR'], ['trainer@rural-pilot.local', 'TRAINER'], ['assessor@rural-pilot.local', 'ASSESSOR'], ['employer@rural-pilot.local', 'EMPLOYER_ADMIN'], ['finance@rural-pilot.local', 'FINANCE_USER']]) {
+  for (const [email, role] of [['owner@rural-pilot.local', 'TENANT_OWNER'], ['programme@rural-pilot.local', 'PROGRAMME_MANAGER'], ['coordinator@rural-pilot.local', 'FIELD_COORDINATOR'], ['trainer@rural-pilot.local', 'TRAINER'], ['assessor@rural-pilot.local', 'ASSESSOR'], ['employer@rural-pilot.local', 'EMPLOYER_ADMIN'], ['finance@rural-pilot.local', 'FINANCE_USER'], ['student@rural-pilot.local', 'CANDIDATE']]) {
     await p.user.create({ data: { tenantId: pilot.id, email, passwordHash: hash, role } });
   }
   await p.user.create({ data: { tenantId: second.id, email: 'owner@second.local', passwordHash: hash, role: 'TENANT_OWNER' } });

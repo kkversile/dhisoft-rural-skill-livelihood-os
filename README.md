@@ -131,6 +131,19 @@ npm run db:seed
 npm run dev
 ```
 
+For the AWS-compatible local stack, use the local-only Docker services and in-repository workers:
+
+```bash
+npm run infra:start
+npm run infra:init
+npm run db:migrate
+npm run db:seed
+npm run dev
+npm run workers:dev
+```
+
+See `docs/LOCAL-INFRASTRUCTURE.md` for provider selection, ports and local credentials. This flow does not connect to real AWS or DigitalOcean.
+
 Local services:
 
 - Frontend: `http://localhost:7000`
@@ -149,6 +162,13 @@ The checked local workspace uses an isolated PostgreSQL cluster on port `5433` b
 - `IMPLEMENTATION-STATUS.md` — implemented capabilities and remaining production integrations
 - `PRD-TRACEABILITY-MATRIX.md` — requirements-to-implementation traceability
 - `VERIFICATION-REPORT.md` — verification summary
+- `docs/EVENT-DRIVEN-ARCHITECTURE.md` — audited current architecture and incremental target
+- `docs/LOCAL-INFRASTRUCTURE.md` — LocalStack, Redpanda, Redis and PostgreSQL startup
+- `docs/EVENT-CATALOG.md` — versioned domain event contracts
+- `docs/QUEUE-CATALOG.md` — SQS-compatible queues and DLQs
+- `docs/OUTBOX-PATTERN.md` — transactional outbox and idempotent consumers
+- `docs/FAILURE-RECOVERY-TESTS.md` — local failure/recovery scenarios
+- `docs/DIGITALOCEAN-DEPLOYMENT.md` — deployment preparation only; not executed
 
 ## Remaining production integrations
 

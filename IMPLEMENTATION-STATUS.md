@@ -12,6 +12,9 @@ Implemented and verified in code
 - Tenant outcome dashboard, append-only workflow audit entries, local filesystem uploads with tenant-isolated keys, random filenames, size/MIME/magic-byte validation and document versions.
 - Functional responsive Next.js workspaces with list/search/pagination-ready state, create forms, detail views, loading/empty/error states, mobile layout, English/Telugu/Hindi selector, manifest and service worker.
 - Strict TypeScript compilation, Prisma validation/generation/migration, database seed, backend health/Swagger, login, refresh/CSRF, cross-tenant read denial, frontend production build and smoke verification.
+- Provider-neutral storage, queue, event-bus, stream, notification and cache ports with local, LocalStack/S3, SQS, EventBridge, Redpanda/Kafka and Redis adapters.
+- Additive transactional outbox and processed-event idempotency models, candidate/document/workflow event emission, outbox publisher worker, and liveness/readiness dependency checks.
+- Bounded local Docker Compose topology for PostgreSQL, LocalStack, Redpanda and Redis plus idempotent resource/topic initialization.
 
 Known local-environment note
 
@@ -19,4 +22,4 @@ Known local-environment note
 
 Remaining production integrations
 
-- Email/SMS/WhatsApp providers, external payment gateway credentials, S3 adapter credentials, Redis/BullMQ, malware scanning, and administrative MFA need deployment-specific secrets/provider configuration. The local filesystem, database-job, local payment, and MFA data-model paths are present for local operation.
+- Email/SMS/WhatsApp providers, external payment gateway credentials, malware scanning, and administrative MFA need deployment-specific secrets/provider configuration. The local adapters and Docker-compatible AWS/stream/cache adapters are implemented, but production credentials and operational policies remain deployment-specific.

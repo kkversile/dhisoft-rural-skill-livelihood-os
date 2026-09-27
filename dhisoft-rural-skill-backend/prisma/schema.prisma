@@ -94,6 +94,8 @@ model Tenant {
   payouts               Payout[]
   documents             Document[]
   courseSubscriptions   CourseSubscription[]
+  outboxEvents          OutboxEvent[]
+  processedEvents       ProcessedEvent[]
 
   @@index([status])
 }
@@ -301,6 +303,11 @@ model Course {
   lessonAuthor         String?
   lessonAuthorUrl      String?
   lessonThumbnailUrl   String?
+  videoStorageKey      String?
+  videoOriginalName    String?
+  videoMimeType        String?
+  videoSizeBytes       Int?
+  videoSha256          String?
   subscriptionRequired Boolean              @default(true)
   subscriptions        CourseSubscription[]
 
@@ -957,4 +964,39 @@ model AuditEvent {
 
   @@index([tenantId, createdAt])
   @@index([tenantId, entity, entityId])
+}
+
+model OutboxEvent {
+  id            String    @id @default(uuid()) @db.Uuid
+  eventId       String    @unique @db.Uuid
+  tenantId      String    @db.Uuid
+  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+  eventType     String
+  eventVersion  Int       @default(1)
+  aggregateType String
+  aggregateId   String
+  correlationId String
+  causationId   String?
+  payload       Json
+  publishedAt   DateTime?
+  availableAt   DateTime  @default(now())
+  lockedAt      DateTime?
+  attempts      Int       @default(0)
+  lastError     String?
+  createdAt     DateTime  @default(now())
+
+  @@index([publishedAt, availableAt, lockedAt])
+  @@index([tenantId, eventType, createdAt])
+}
+
+model ProcessedEvent {
+  id           String   @id @default(uuid()) @db.Uuid
+  eventId      String   @db.Uuid
+  consumerName String
+  tenantId     String   @db.Uuid
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  processedAt  DateTime @default(now())
+
+  @@unique([eventId, consumerName])
+  @@index([tenantId, processedAt])
 }

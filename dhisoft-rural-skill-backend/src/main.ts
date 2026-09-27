@@ -17,7 +17,7 @@ async function bootstrap() {
     origin: (origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) => { if (!origin || origin === frontend) callback(null, true); else callback(new Error('Origin not allowed'), false); },
     credentials: true, methods: ['GET','HEAD','POST','PUT','PATCH','DELETE','OPTIONS'], allowedHeaders: ['Content-Type','X-CSRF-Token','Authorization'],
   });
-  app.setGlobalPrefix('api', { exclude: ['health'] });
+  app.setGlobalPrefix('api', { exclude: ['health', 'health/{*path}'] });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true, transformOptions: { enableImplicitConversion: true } }));
   const config = new DocumentBuilder().setTitle('DHISOFT Rural Skill and Livelihood API').setVersion('1.0').addCookieAuth('access_token').addCookieAuth('refresh_token').build();
   SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, config));

@@ -63,14 +63,14 @@ test.describe('tenant module navigation, forms, CRUD entry and filters', () => {
     await page.getByRole('button', { name: 'Add Course' }).click();
     await page.getByLabel('Trade ID', { exact: true }).fill(tradeId);
     await page.getByLabel('Course code', { exact: true }).fill(`PW-${stamp}`);
-    await page.getByLabel('Course title', { exact: true }).fill(`Playwright Learning Course ${stamp}`);
+    await page.getByLabel('Course title', { exact: true }).fill(`Residential Cooling Learning Course ${stamp}`);
     await page.getByLabel('YouTube lesson URL', { exact: false }).fill('https://www.youtube.com/watch?v=aqz-KE-bpKQ');
     await page.getByRole('button', { name: 'Save course' }).click();
-    await expect(page.getByText(`Playwright Learning Course ${stamp}`, { exact: true })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(`Residential Cooling Learning Course ${stamp}`, { exact: true })).toBeVisible({ timeout: 10000 });
     await page.getByRole('button', { name: 'View course' }).first().click();
     await expect(page.getByText('Subscribe to start learning', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Subscribe to course' }).click();
-    await expect(page.locator('iframe[title*="Playwright Learning Course"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('iframe[title*="Residential Cooling Learning Course"]')).toBeVisible({ timeout: 10000 });
   });
 
   test('user adds supplied YouTube lesson metadata and plays the seeded course after subscribing', async ({ page }) => {
@@ -137,37 +137,37 @@ test.describe('tenant module navigation, forms, CRUD entry and filters', () => {
 
     await test.step('candidate registration', async () => {
       await page.goto('/candidates/new');
-      await page.getByLabel('Full name').fill(`Playwright Candidate ${stamp}`);
+      await page.getByLabel('Full name').fill(`Suresh Kumar ${stamp}`);
       await page.getByLabel('Date of birth').fill('1998-05-15');
       await page.getByLabel('Mobile').fill(`911${stamp.slice(-7)}`);
       await page.getByLabel('Trade interest').fill('AC and refrigeration');
       await page.getByLabel('Preferred language').selectOption('en');
       await page.getByRole('button', { name: 'Save registration' }).click();
       await expect(page).toHaveURL(/\/candidates$/);
-      await expect(page.getByText(`Playwright Candidate ${stamp}`, { exact: true })).toBeVisible();
+      await expect(page.getByText(`Suresh Kumar ${stamp}`, { exact: true })).toBeVisible();
     });
 
-    await createRecord(page, '/counselling', /Add Counselling/, { 'Candidate ID': candidateId, 'Counsellor ID': counsellorId, 'Session date': '2026-08-20', Interests: `Playwright interests ${stamp}` }, candidateId);
-    await createRecord(page, '/partners', /Add Training partner/, { 'Partner name': `Playwright Partner ${stamp}`, 'Registration number': `REG-${stamp}`, Status: 'APPROVED' }, `Playwright Partner ${stamp}`);
-    await createRecord(page, '/trainers', /Add Trainer/, { 'Trainer name': `Playwright Trainer ${stamp}`, Phone: '9000012345', 'Specialisations (comma separated)': 'AC, Safety' }, `Playwright Trainer ${stamp}`);
-    await createRecord(page, '/centres', /Add Training centre/, { 'Centre name': `Playwright Centre ${stamp}`, District: 'Rangareddy', Capacity: '25', Status: 'APPROVED' }, `Playwright Centre ${stamp}`);
-    await createRecord(page, '/batches', /Add Batch/, { 'Batch name': `Playwright Batch ${stamp}`, 'Course ID': courseId, 'Curriculum version ID': curriculumId, 'Centre ID': centreId, 'Start date': '2026-08-20', 'End date': '2026-11-20', Capacity: '20' }, `Playwright Batch ${stamp}`);
+    await createRecord(page, '/counselling', /Add Counselling/, { 'Candidate ID': candidateId, 'Counsellor ID': counsellorId, 'Session date': '2026-08-20', Interests: `Cooling installation interests ${stamp}` }, candidateId);
+    await createRecord(page, '/partners', /Add Training partner/, { 'Partner name': `Rural Skills Training Partner ${stamp}`, 'Registration number': `REG-${stamp}`, Status: 'APPROVED' }, `Rural Skills Training Partner ${stamp}`);
+    await createRecord(page, '/trainers', /Add Trainer/, { 'Trainer name': `Anita Rao ${stamp}`, Phone: '9000012345', 'Specialisations (comma separated)': 'AC, Safety' }, `Anita Rao ${stamp}`);
+    await createRecord(page, '/centres', /Add Training centre/, { 'Centre name': `Rangareddy Skills Centre ${stamp}`, District: 'Rangareddy', Capacity: '25', Status: 'APPROVED' }, `Rangareddy Skills Centre ${stamp}`);
+    await createRecord(page, '/batches', /Add Batch/, { 'Batch name': `Cooling Technician Cohort ${stamp}`, 'Course ID': courseId, 'Curriculum version ID': curriculumId, 'Centre ID': centreId, 'Start date': '2026-08-20', 'End date': '2026-11-20', Capacity: '20' }, `Cooling Technician Cohort ${stamp}`);
     await createRecord(page, '/attendance', /Add Attendance/, { 'Candidate ID': candidateId, 'Batch ID': batchId, 'Enrollment ID': enrollmentId, Date: '2026-08-20', 'Session type': `THEORY-${stamp}`, 'Present / absent': 'PRESENT' }, `THEORY-${stamp}`);
-    await createRecord(page, '/assignments', /Add Practical assignment/, { 'Candidate ID': candidateId, 'Batch ID': batchId, 'Enrollment ID': enrollmentId, 'Assignment title': `Playwright Assignment ${stamp}`, Instructions: 'Complete the safe installation checklist.', 'Due date': '2026-09-20' }, `Playwright Assignment ${stamp}`);
-    await createRecord(page, '/assessments', /Add Assessment/, { 'Batch ID': batchId, 'Course ID': courseId, 'Assessment name': `Playwright Assessment ${stamp}`, 'Theory / practical': 'THEORY', 'Scheduled at': '2026-09-25T10:00' }, `Playwright Assessment ${stamp}`);
-    await createRecord(page, '/apprenticeships', /Add Apprenticeship/, { 'Candidate ID': candidateId, 'Trade ID': tradeId, 'Provider name': `Playwright Provider ${stamp}`, 'Start date': '2026-09-01', 'Monthly stipend': '8000' }, `Playwright Provider ${stamp}`);
-    await createRecord(page, '/employers', /Add Employer/, { 'Employer name': `Playwright Employer ${stamp}`, District: 'Rangareddy', Phone: '9000099999', Email: `employer-${stamp}@example.local` }, `Playwright Employer ${stamp}`);
-    const employerId = await firstId(page, `/workflow/employers?search=Playwright%20Employer%20${stamp}`);
-    await createRecord(page, '/vacancies', /Add Vacancy/, { 'Employer ID': employerId, 'Trade ID': tradeId, 'Role title': `Playwright Vacancy ${stamp}`, Openings: '2', 'Minimum salary': '15000', 'Maximum salary': '22000', Location: 'Hyderabad', 'Risks and controls': 'PPE and electrical safety induction' }, `Playwright Vacancy ${stamp}`);
-    await createRecord(page, '/service-areas', /Add Service area/, { 'Area name': `Playwright Area ${stamp}`, District: 'Rangareddy', 'Postal codes (comma separated)': '500001,500002' }, `Playwright Area ${stamp}`);
-    const areaId = await firstId(page, `/workflow/serviceAreas?search=Playwright%20Area%20${stamp}`);
-    await createRecord(page, '/service-opportunities', /Add Service opportunity/, { 'Service area ID': areaId, 'Trade ID': tradeId, 'Opportunity title': `Playwright Opportunity ${stamp}`, Description: 'Safe AC service visit.', Price: '750' }, `Playwright Opportunity ${stamp}`);
-    const opportunityId = await firstId(page, `/workflow/serviceOpportunities?search=Playwright%20Opportunity%20${stamp}`);
-    await createRecord(page, '/service-bookings', /Add Service booking/, { 'Opportunity ID': opportunityId, 'Technician candidate ID': candidateId, 'Customer name': `Playwright Customer ${stamp}`, 'Customer mobile': '9000088888', 'Service address': 'Rangareddy', 'Agreed amount': '750' }, `Playwright Customer ${stamp}`);
-    const complaintId = await createRecord(page, '/complaints', /Add Safety and complaint/, { Category: `PLAYWRIGHT-${stamp}`, Description: 'Created by the module acceptance suite.', Severity: 'LOW' }, `PLAYWRIGHT-${stamp}`);
+    await createRecord(page, '/assignments', /Add Practical assignment/, { 'Candidate ID': candidateId, 'Batch ID': batchId, 'Enrollment ID': enrollmentId, 'Assignment title': `Cooling Installation Safety Assignment ${stamp}`, Instructions: 'Complete the safe installation checklist.', 'Due date': '2026-09-20' }, `Cooling Installation Safety Assignment ${stamp}`);
+    await createRecord(page, '/assessments', /Add Assessment/, { 'Batch ID': batchId, 'Course ID': courseId, 'Assessment name': `Cooling Technician Foundation Assessment ${stamp}`, 'Theory / practical': 'THEORY', 'Scheduled at': '2026-09-25T10:00' }, `Cooling Technician Foundation Assessment ${stamp}`);
+    await createRecord(page, '/apprenticeships', /Add Apprenticeship/, { 'Candidate ID': candidateId, 'Trade ID': tradeId, 'Provider name': `Telangana Cooling Services Apprenticeship ${stamp}`, 'Start date': '2026-09-01', 'Monthly stipend': '8000' }, `Telangana Cooling Services Apprenticeship ${stamp}`);
+    await createRecord(page, '/employers', /Add Employer/, { 'Employer name': `Telangana Cooling Services ${stamp}`, District: 'Rangareddy', Phone: '9000099999', Email: `employer-${stamp}@example.local` }, `Telangana Cooling Services ${stamp}`);
+    const employerId = await firstId(page, `/workflow/employers?search=Telangana%20Cooling%20Services%20${stamp}`);
+    await createRecord(page, '/vacancies', /Add Vacancy/, { 'Employer ID': employerId, 'Trade ID': tradeId, 'Role title': `Junior Cooling Service Technician ${stamp}`, Openings: '2', 'Minimum salary': '15000', 'Maximum salary': '22000', Location: 'Hyderabad', 'Risks and controls': 'PPE and electrical safety induction' }, `Junior Cooling Service Technician ${stamp}`);
+    await createRecord(page, '/service-areas', /Add Service area/, { 'Area name': `Rangareddy Service Area ${stamp}`, District: 'Rangareddy', 'Postal codes (comma separated)': '500001,500002' }, `Rangareddy Service Area ${stamp}`);
+    const areaId = await firstId(page, `/workflow/serviceAreas?search=Rangareddy%20Service%20Area%20${stamp}`);
+    await createRecord(page, '/service-opportunities', /Add Service opportunity/, { 'Service area ID': areaId, 'Trade ID': tradeId, 'Opportunity title': `Residential AC Service Opportunity ${stamp}`, Description: 'Safe AC service visit.', Price: '750' }, `Residential AC Service Opportunity ${stamp}`);
+    const opportunityId = await firstId(page, `/workflow/serviceOpportunities?search=Residential%20AC%20Service%20Opportunity%20${stamp}`);
+    await createRecord(page, '/service-bookings', /Add Service booking/, { 'Opportunity ID': opportunityId, 'Technician candidate ID': candidateId, 'Customer name': `Ravi Kumar ${stamp}`, 'Customer mobile': '9000088888', 'Service address': 'Rangareddy', 'Agreed amount': '750' }, `Ravi Kumar ${stamp}`);
+    const complaintId = await createRecord(page, '/complaints', /Add Safety and complaint/, { Category: `Household safety follow-up ${stamp}`, Description: 'Created by the module acceptance suite.', Severity: 'LOW' }, `Household safety follow-up ${stamp}`);
     await createRecord(page, '/payments', /Add Payment/, { Amount: '750', Provider: 'LOCAL', 'Provider reference': `PAY-${stamp}` }, '750');
     await createRecord(page, '/payouts', /Add Payout/, { Amount: '650', 'Idempotency key': `PAYOUT-${stamp}` }, '650');
-    await createRecord(page, '/earnings', /Add Earning/, { 'Candidate ID': candidateId, Month: '2050-01-01', 'Gross income': '22000', 'Net income': '18000', Source: `PLAYWRIGHT-${stamp}` }, `PLAYWRIGHT-${stamp}`);
+    await createRecord(page, '/earnings', /Add Earning/, { 'Candidate ID': candidateId, Month: '2050-01-01', 'Gross income': '22000', 'Net income': '18000', Source: `Household safety follow-up ${stamp}` }, `Household safety follow-up ${stamp}`);
 
     const updateResult = await page.evaluate(async ({ id, category }) => {
       const csrf = document.cookie.match(/(?:^|; )csrf_token=([^;]+)/)?.[1] || '';

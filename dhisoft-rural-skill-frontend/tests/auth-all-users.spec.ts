@@ -11,6 +11,7 @@ const users = [
   ['rural-pilot', 'assessor@rural-pilot.local'],
   ['rural-pilot', 'employer@rural-pilot.local'],
   ['rural-pilot', 'finance@rural-pilot.local'],
+  ['rural-pilot', 'student@rural-pilot.local'],
   ['second-tenant', 'owner@second.local'],
 ] as const;
 

@@ -4,7 +4,7 @@ const loginPassword = process.env.NEXT_PUBLIC_LOCAL_LOGIN_PASSWORD || process.en
 if (!loginPassword) throw new Error('Set NEXT_PUBLIC_LOCAL_LOGIN_PASSWORD or PLAYWRIGHT_LOGIN_PASSWORD before running Playwright.');
 
 test('tenant user can log in and create a complaint', async ({ page }) => {
-  const category = `PLAYWRIGHT-${Date.now()}`;
+  const category = `Household electrical safety follow-up ${Date.now()}`;
 
   await page.goto('/login');
   await expect(page.getByLabel('Tenant slug')).toHaveValue('rural-pilot');
@@ -20,7 +20,7 @@ test('tenant user can log in and create a complaint', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Safety and complaints' })).toBeVisible();
   await page.getByRole('button', { name: /Add Safety and complaint/ }).click();
   await page.getByLabel('Category').fill(category);
-  await page.getByLabel('Description').fill('Created through the Playwright acceptance flow.');
+  await page.getByLabel('Description').fill('Created through the field operations acceptance flow.');
   await page.getByLabel('Severity').fill('LOW');
   await page.getByRole('button', { name: 'Save record' }).click();
 
