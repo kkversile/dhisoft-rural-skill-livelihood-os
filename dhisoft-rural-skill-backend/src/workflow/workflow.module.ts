@@ -1,2 +1,2 @@
-import { Module } from '@nestjs/common'; import { WorkflowController } from './workflow.controller'; import { WorkflowService } from './workflow.service';import { AuthModule } from '../auth/auth.module';
-@Module({imports:[AuthModule],controllers:[WorkflowController],providers:[WorkflowService]}) export class WorkflowModule {}
+import { Module } from '@nestjs/common'; import { WorkflowController } from './workflow.controller'; import { WorkflowService } from './workflow.service';import { AuthModule } from '../auth/auth.module';import { EventsModule } from '../events/events.module';
+@Module({imports:[AuthModule,EventsModule],controllers:[WorkflowController],providers:[WorkflowService],exports:[WorkflowService]}) export class WorkflowModule {}

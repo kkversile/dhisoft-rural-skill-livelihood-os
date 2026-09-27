@@ -14,5 +14,9 @@
 | Local service work, safety and complaints | service area/opportunity/booking, complaint, payment and payout models and workspaces |
 | Retention, earnings and reporting | follow-up/income models, `/api/workflow/report`, dashboard and earnings/retention workspaces |
 | Storage | `src/storage`, tenant-isolated local upload, random key, MIME/magic-byte/size checks and document audit metadata |
+| Infrastructure ports | `src/infrastructure/ports`, provider-selected local/S3, SQS, EventBridge, Redpanda/Kafka, notification and Redis adapters |
+| Transactional outbox | `OutboxEvent`, `ProcessedEvent`, `src/events/outbox.service.ts`, additive migration and compiled publisher worker |
+| Local AWS-compatible stack | `infra/docker-compose.local.yml`, `scripts/infra-init.mjs`, LocalStack bucket/queues/DLQs/EventBridge bus and Redpanda topics |
+| Health and observability | `/health/live`, `/health/ready`, structured request/worker/event logs with tenant/correlation identifiers |
 | Localisation and PWA | language selector, core Telugu labels, manifest, `public/sw.js`, registration component |
 | Verification | strict TypeScript, Prisma validate/generate/migrate/seed, backend health/auth/isolation checks, Next production build |

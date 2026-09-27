@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { randomUUID } from 'node:crypto';
+import { OutboxService } from '../events/outbox.service';
 
 type Query = { page?: number; pageSize?: number; search?: string; status?: string; sort?: string; direction?: 'asc' | 'desc' };
 type Data = Record<string, unknown>;
@@ -12,10 +13,19 @@ const sortable: Record<string, string[]> = { trade: ['name', 'code'], course: ['
 const statusModels = new Set(['course', 'curriculumVersion', 'trainingPartner', 'trainerProfile', 'trainingCentre', 'batch', 'enrollment', 'timetable', 'attendanceRecord', 'practicalAssignment', 'evidenceFile', 'assessment', 'certificate', 'counsellingSession', 'tradeRecommendation', 'candidateTradeChoice', 'employer', 'vacancy', 'jobApplication', 'interview', 'employmentOffer', 'apprenticeship', 'placement', 'retentionFollowUp', 'serviceArea', 'serviceOpportunity', 'serviceBooking', 'complaint', 'payment', 'payout', 'document']);
 const blocked = new Set(['id', 'tenantId', 'createdAt', 'updatedAt', 'version', 'tokenHash', 'storageKey']);
 const referenceModels: Record<string, string> = { candidateId: 'candidate', batchId: 'batch', enrollmentId: 'enrollment', timetableId: 'timetable', assignmentId: 'practicalAssignment', assessmentId: 'assessment', tradeId: 'trade', courseId: 'course', curriculumVersionId: 'curriculumVersion', centreId: 'trainingCentre', employerId: 'employer', vacancyId: 'vacancy', applicationId: 'jobApplication', interviewId: 'interview', placementId: 'placement', serviceAreaId: 'serviceArea', opportunityId: 'serviceOpportunity', serviceBookingId: 'serviceBooking', paymentId: 'payment', recommendationId: 'tradeRecommendation', trainingPartnerId: 'trainingPartner' };
+const workflowEvents: Record<string, string> = { counselling: 'counselling.completed', enrollments: 'training.enrolled', attendance: 'training.attendance.recorded', assessments: 'training.assessment.completed', certificates: 'training.certificate.issued', applications: 'employment.application.created', interviews: 'employment.interview.completed', offers: 'employment.offer.created', placements: 'employment.placement.created', retention: 'employment.retention.updated', serviceBookings: 'livelihood.booking.created', earnings: 'livelihood.earning.recorded', payouts: 'livelihood.payout.completed' };
+
+function booleanValue(value: unknown) {
+  if (value === true || value === 1 || value === '1') return true;
+  if (value === false || value === 0 || value === '0') return false;
+  return typeof value === 'string' && value.toLowerCase() === 'true';
+}
+
+export function assessmentEventTypes(passed: unknown) { return ['training.assessment.completed', booleanValue(passed) ? 'training.assessment.passed' : 'training.assessment.failed']; }
 
 @Injectable()
 export class WorkflowService {
-  constructor(private p: PrismaService) {}
+  constructor(private p: PrismaService, private readonly outbox: OutboxService) {}
 
   private model(resource: string) {
     const modelName = resources[resource];
@@ -72,10 +82,12 @@ export class WorkflowService {
   private async sanitizeCourse(tenantId: string, userId: string, item: Data) {
     if (!item || resources.courses !== 'course') return item;
     const youtubeUrl = typeof item.youtubeUrl === 'string' ? item.youtubeUrl : null;
+    const uploadedVideo = Boolean(item.videoStorageKey);
     const subscriptionRequired = item.subscriptionRequired !== false;
     const subscribed = await this.isSubscribed(tenantId, userId, String(item.id));
-    const accessGranted = Boolean(youtubeUrl) && (!subscriptionRequired || subscribed);
-    return { ...item, youtubeUrl: accessGranted ? youtubeUrl : null, videoAvailable: Boolean(youtubeUrl), accessGranted, subscribed };
+    const accessGranted = Boolean(youtubeUrl || uploadedVideo) && (!subscriptionRequired || subscribed);
+    const { videoStorageKey, videoOriginalName, videoMimeType, videoSizeBytes, videoSha256, ...safeItem } = item;
+    return { ...safeItem, youtubeUrl: accessGranted ? youtubeUrl : null, videoAvailable: Boolean(youtubeUrl || uploadedVideo), videoSource: uploadedVideo ? 'upload' : (youtubeUrl ? 'youtube' : null), accessGranted, subscribed };
   }
 
   async list(tenantId: string, userId: string, resource: string, q: Query) {
@@ -105,15 +117,25 @@ export class WorkflowService {
     return resources[resource] === 'course' ? this.sanitizeCourse(tenantId, userId, item) : item;
   }
 
-  private async assertReferences(tenantId: string, data: Data) {
+  private async assertReferences(db: PrismaService | any, tenantId: string, data: Data) {
     for (const [key, modelName] of Object.entries(referenceModels)) {
       const id = data[key];
       if (typeof id !== 'string') continue;
-      const model = (this.p as unknown as Record<string, any>)[modelName];
+      const model = (db as unknown as Record<string, any>)[modelName];
       if (!model) continue;
       const row = await model.findFirst({ where: { id, tenantId } });
       if (!row) throw new ForbiddenException(`Cross-tenant or missing reference: ${key}`);
     }
+  }
+
+  private eventTypesFor(resource: string, row: Data) {
+    if (resource !== 'results') return workflowEvents[resource] ? [workflowEvents[resource]] : [];
+    return assessmentEventTypes(row.passed);
+  }
+
+  private eventData(resource: string, row: Data) {
+    if (resource === 'results') return { resource, id: row.id, assessmentId: row.assessmentId, candidateId: row.candidateId, passed: booleanValue(row.passed), status: row.status || null };
+    return { resource, id: row.id, status: row.status || null };
   }
 
   async create(tenantId: string, userId: string, resource: string, input: WorkflowDataDtoLike) {
@@ -124,17 +146,23 @@ export class WorkflowService {
     if (input.status) data.status = input.status;
     this.validateCourseData(resource, data);
     if (resource === 'courses' && data.youtubeUrl) Object.assign(data, await this.extractLessonMetadata(data.youtubeUrl));
-    await this.assertReferences(tenantId, data);
-    if (resource === 'enrollments') {
-      const candidate = await this.p.candidate.findFirst({ where: { id: String(data.candidateId), tenantId } });
-      const batch = await this.p.batch.findFirst({ where: { id: String(data.batchId), tenantId } });
-      if (!candidate || candidate.status !== 'VERIFIED') throw new BadRequestException('Only verified adult candidates can enrol.');
-      if (!batch) throw new BadRequestException('Batch not found.');
-      const count = await this.p.enrollment.count({ where: { batchId: batch.id } });
-      if (count >= batch.capacity) throw new BadRequestException('Batch capacity is full.');
-    }
-    const created = await model.create({ data });
-    await this.audit(tenantId, userId, 'workflow.create', resource, created.id, created);
+    const created = await this.p.$transaction(async (tx) => {
+      const txModel = (tx as unknown as Record<string, any>)[resources[resource]];
+      await this.assertReferences(tx, tenantId, data);
+      if (resource === 'enrollments') {
+        const candidate = await tx.candidate.findFirst({ where: { id: String(data.candidateId), tenantId } });
+        const batch = await tx.batch.findFirst({ where: { id: String(data.batchId), tenantId } });
+        if (!candidate || candidate.status !== 'VERIFIED') throw new BadRequestException('Only verified adult candidates can enrol.');
+        if (!batch) throw new BadRequestException('Batch not found.');
+        const count = await tx.enrollment.count({ where: { batchId: batch.id } });
+        if (count >= batch.capacity) throw new BadRequestException('Batch capacity is full.');
+      }
+      const row = await txModel.create({ data });
+      await this.audit(tx, tenantId, userId, 'workflow.create', resource, row.id, row);
+      const correlationId = randomUUID();
+      for (const eventType of this.eventTypesFor(resource, row)) await this.outbox.enqueue(tx, { tenantId, eventType, aggregateType: resources[resource], aggregateId: row.id, correlationId, data: this.eventData(resource, row) });
+      return row;
+    });
     return resources[resource] === 'course' ? this.sanitizeCourse(tenantId, userId, created) : created;
   }
 
@@ -147,19 +175,26 @@ export class WorkflowService {
     this.validateCourseData(resource, data);
     if (resource === 'courses' && data.youtubeUrl) Object.assign(data, await this.extractLessonMetadata(data.youtubeUrl));
     if (resource === 'courses' && data.youtubeUrl === null) Object.assign(data, { lessonTitle: null, lessonAuthor: null, lessonAuthorUrl: null, lessonThumbnailUrl: null });
-    await this.assertReferences(tenantId, data);
-    const updated = await model.update({ where: { id }, data });
-    await this.audit(tenantId, userId, 'workflow.update', resource, id, updated);
+    const updated = await this.p.$transaction(async (tx) => {
+      await this.assertReferences(tx, tenantId, data);
+      const txModel = (tx as unknown as Record<string, any>)[resources[resource]];
+      const row = await txModel.update({ where: { id }, data });
+      await this.audit(tx, tenantId, userId, 'workflow.update', resource, id, row);
+      const correlationId = randomUUID();
+      for (const eventType of this.eventTypesFor(resource, row)) await this.outbox.enqueue(tx, { tenantId, eventType, aggregateType: resources[resource], aggregateId: id, correlationId, data: this.eventData(resource, row) });
+      return row;
+    });
     return resources[resource] === 'course' ? this.sanitizeCourse(tenantId, userId, updated) : updated;
   }
 
   async courseAccess(tenantId: string, userId: string, courseId: string) {
-    const course = await this.p.course.findFirst({ where: { id: courseId, tenantId }, select: { id: true, title: true, youtubeUrl: true, subscriptionRequired: true, lessonTitle: true, lessonAuthor: true, lessonAuthorUrl: true, lessonThumbnailUrl: true } });
+    const course = await this.p.course.findFirst({ where: { id: courseId, tenantId }, select: { id: true, title: true, youtubeUrl: true, videoStorageKey: true, subscriptionRequired: true, lessonTitle: true, lessonAuthor: true, lessonAuthorUrl: true, lessonThumbnailUrl: true } });
     if (!course) throw new NotFoundException('Course not found.');
     const subscribed = await this.isSubscribed(tenantId, userId, courseId);
     const embedUrl = this.youtubeEmbedUrl(course.youtubeUrl);
-    const accessGranted = Boolean(embedUrl) && (!course.subscriptionRequired || subscribed);
-    return { courseId: course.id, title: course.title, lessonTitle: course.lessonTitle, lessonAuthor: course.lessonAuthor, lessonAuthorUrl: course.lessonAuthorUrl, lessonThumbnailUrl: course.lessonThumbnailUrl, videoAvailable: Boolean(embedUrl), subscriptionRequired: course.subscriptionRequired, subscribed, accessGranted, embedUrl: accessGranted ? embedUrl : null };
+    const videoSource = course.videoStorageKey ? 'upload' : (embedUrl ? 'youtube' : null);
+    const accessGranted = Boolean(videoSource) && (!course.subscriptionRequired || subscribed);
+    return { courseId: course.id, title: course.title, lessonTitle: course.lessonTitle, lessonAuthor: course.lessonAuthor, lessonAuthorUrl: course.lessonAuthorUrl, lessonThumbnailUrl: course.lessonThumbnailUrl, videoAvailable: Boolean(videoSource), videoSource, subscriptionRequired: course.subscriptionRequired, subscribed, accessGranted, embedUrl: accessGranted && videoSource === 'youtube' ? embedUrl : null, videoUrl: accessGranted && videoSource === 'upload' ? `/api/documents/course-video/${course.id}` : null };
   }
 
   async subscribeToCourse(tenantId: string, userId: string, courseId: string) {
@@ -170,7 +205,7 @@ export class WorkflowService {
       create: { tenantId, courseId, userId, status: 'ACTIVE' },
       update: { status: 'ACTIVE', cancelledAt: null, subscribedAt: new Date() },
     });
-    await this.audit(tenantId, userId, 'course.subscribe', 'Course', courseId, { courseId, userId });
+    await this.audit(this.p, tenantId, userId, 'course.subscribe', 'Course', courseId, { courseId, userId });
     return this.courseAccess(tenantId, userId, courseId);
   }
 
@@ -188,7 +223,7 @@ export class WorkflowService {
       const explanation = `Score ${score}/100: ${interest === 60 ? 'matches stated interests' : 'general fit'}; ${demand} published employer demand signal(s); ${candidate.district ? 'location captured' : 'location not yet captured'}.`;
       made.push(await this.p.tradeRecommendation.create({ data: { tenantId, candidateId, tradeId: trade.id, score, factors, explanation } }));
     }
-    await this.audit(tenantId, userId, 'recommendations.generate', 'Candidate', candidateId, made.map((item) => item.id));
+    await this.audit(this.p, tenantId, userId, 'recommendations.generate', 'Candidate', candidateId, made.map((item) => item.id));
     return made.sort((a, b) => Number(b.score) - Number(a.score));
   }
 
@@ -199,8 +234,8 @@ export class WorkflowService {
     return { candidates, verified, enrolled, certificates, placements, netIncome: earnings._sum.net || 0, complaints, serviceBookings: bookings };
   }
 
-  private audit(tenantId: string, userId: string, action: string, entity: string, entityId: string, newValue: unknown) {
-    return this.p.auditEvent.create({ data: { tenantId, userId, action, entity, entityId, newValue: newValue as object, correlationId: randomUUID() } });
+  private audit(db: PrismaService | any, tenantId: string, userId: string, action: string, entity: string, entityId: string, newValue: unknown) {
+    return db.auditEvent.create({ data: { tenantId, userId, action, entity, entityId, newValue: newValue as object, correlationId: randomUUID() } });
   }
 }
 
