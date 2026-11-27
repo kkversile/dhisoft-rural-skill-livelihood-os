@@ -4,6 +4,8 @@ A secure, multi-tenant operating system for rural skilling and livelihood progra
 
 This repository is a runnable full-stack Phase 1A implementation rather than a UI-only prototype.
 
+See [DHISOFT’s custom software development services](https://dhisoft.in/services/custom-software) for more on building platforms that connect workflows across teams.
+
 ## Product scope
 
 The platform connects multiple operational domains in one tenant-scoped workflow:
